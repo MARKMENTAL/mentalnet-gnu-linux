@@ -19,8 +19,10 @@ msg()	{ printf '%s\n' "$*"; }
 warn()	{ printf 'WARNING: %s\n' "$*"; }
 die()	{ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
 
-# make sure a failed run never leaves the target disk mounted
+# make sure a failed run never leaves the target disk mounted and
+# always restores the terminal state
 cleanup() {
+	stty sane 2>/dev/null
 	grep -q " $MNT " /proc/mounts 2>/dev/null && umount "$MNT" 2>/dev/null
 	[ -n "${TMNT:-}" ] && umount /mnt 2>/dev/null
 	return 0
@@ -32,6 +34,10 @@ trap cleanup EXIT
 for t in fdisk mkfs.ext4 grub-install; do
 	command -v "$t" >/dev/null 2>&1 || die "required tool '$t' not found"
 done
+
+# keep the console usable even if the user hits Ctrl-S (XOFF) by
+# accident while the install is running
+stty -ixon 2>/dev/null
 
 banner() {
 	clear 2>/dev/null
@@ -134,15 +140,26 @@ mount -t ext4 "$ROOTPART" "$MNT" || die "could not mount $ROOTPART"
 
 msg "  Copying the system (this takes a while) ..."
 
-# NOTE: one single tar invocation per side. busybox tar stops reading at
-# the first end-of-archive marker, so piping several archives through
-# '-' would silently transfer only the first directory.
+# NOTE: one complete archive->extraction pair per directory. busybox tar
+# stops reading at the first end-of-archive marker, so a single archive
+# made of several directories would transfer only the first one; a pipe
+# of several archives would leave the reader hanging after the first
+# EOF. Per-directory pairs are safe and give progress feedback on slow
+# machines.
 DIRS=
 for d in bin boot etc home lib lib32 lib64 media opt root sbin srv usr var; do
 	[ -e "/$d" ] && DIRS="$DIRS $d"
 done
-(cd / && tar -cf - $DIRS) | (cd "$MNT" && tar -xpf -) \
-	|| die "copying failed"
+
+# typing during the long copy used to be echoed and buffered, then
+# replayed as shell commands after the installer exited; mute it
+stty -echo 2>/dev/null
+for d in $DIRS; do
+	msg "  Copying: /$d"
+	(cd / && tar -cf - "$d") | (cd "$MNT" && tar -xpf -) \
+		|| { stty echo 2>/dev/null; die "copying /$d failed"; }
+done
+stty echo 2>/dev/null
 
 # mount points that live in tmpfs on the CD
 mkdir -p "$MNT/proc" "$MNT/sys" "$MNT/dev" "$MNT/tmp" "$MNT/run" "$MNT/mnt"
@@ -175,13 +192,24 @@ sed "s|@ROOTDEV@|$ROOTPART|" /usr/share/mentalnet/grub-disk.cfg \
 	|| die "could not write grub.cfg"
 
 msg "  Installing GRUB to the MBR of $DEV ..."
-grub-install --boot-directory="$MNT/boot" "$DEV" >/dev/null 2>&1 \
+grub-install --boot-directory="$MNT/boot" "$DEV" \
 	|| die "grub-install failed"
 
 sync
 umount "$MNT" || umount -f "$MNT" || die "could not unmount $MNT"
 [ -n "$TMNT" ] && umount /mnt
 
+# discard anything the user typed ahead during the (long) copy: it was
+# buffered in the tty and would otherwise be replayed as shell commands
+# after this script exits
+stty -icanon min 0 time 0 2>/dev/null
+i=0
+while [ "$i" -lt 512 ] && read -r junk; do
+	i=$((i + 1))
+done
+stty sane 2>/dev/null
+
+clear 2>/dev/null
 msg ""
 msg "  ============================================================"
 msg "    Installation complete!"

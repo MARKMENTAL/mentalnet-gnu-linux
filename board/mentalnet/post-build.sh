@@ -15,23 +15,26 @@ set -e
 
 TARGET_DIR="${1}"
 #STAMP="$(date +%Y%m%d-%H%M%S)"
-STAMP='R1 "RollingGirl-SE"'
+RELEASE="R1"
+CODENAME="FirstStorm"
+STAMP="${RELEASE} \"${CODENAME}\""        # pretty form: R1 "GhostRule"
+STAMP_SAFE="${RELEASE}-${CODENAME}"       # sanitized:  R1-GhostRule
 IMAGES_DIR="$(dirname "${TARGET_DIR}")/images"
 
 # record the stamp for post-image.sh
 mkdir -p "${IMAGES_DIR}"
-echo "${STAMP}" > "${IMAGES_DIR}/.mn-build-stamp"
+echo "${STAMP_SAFE}" > "${IMAGES_DIR}/.mn-build-stamp"
 
 # /etc/os-release (regular file lives at /usr/lib/os-release; /etc/os-release
 # is a symlink to it) - Mentalnet branding, Buildroot defaults dropped
 OS_RELEASE="${TARGET_DIR}/usr/lib/os-release"
 cat > "${OS_RELEASE}" <<EOF
 NAME="Mentalnet GNU/Linux"
-VERSION="(build ${STAMP})"
+VERSION="${STAMP}"
 ID=mentalnet
-VERSION_ID="R1"
-PRETTY_NAME="Mentalnet GNU/Linux (build ${STAMP})"
-BUILD_ID="${STAMP}"
+VERSION_ID="${RELEASE}"
+PRETTY_NAME="Mentalnet GNU/Linux ${STAMP}"
+BUILD_ID="${STAMP_SAFE}"
 EOF
 
 # login banner

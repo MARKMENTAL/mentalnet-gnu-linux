@@ -57,6 +57,25 @@ Services started at boot:
 DNS from DHCP works on the live CD too: `/etc/resolv.conf` is a
 symlink into tmpfs that `udhcpc` writes through.
 
+### Default kernel command line
+
+Both boot paths (live CD and installed system) ship with:
+
+```
+i8042.nomux i8042.noloop noapic acpi=off i8042.dumbkbd=1
+```
+
+| Option | Purpose |
+|--------|---------|
+| `i8042.nomux` / `i8042.noloop` | skip the two i8042 controller probe steps most known to confuse old or emulated keyboard controllers |
+| `noapic` | use the legacy 8259 PIC instead of the IO-APIC - avoids IRQ routing/storm issues on era boards (which mostly predate the IO-APIC anyway) |
+| `acpi=off` | era BIOSes (1994-1997) have broken or absent ACPI; skipping it avoids the table-parsing minefield. Power management is disabled (era-appropriate) |
+| `i8042.dumbkbd=1` | do not program keyboard LEDs or expect controller ACKs - the conservative mode for flaky 8042 clones (Caps Lock light will not toggle) |
+
+To troubleshoot a specific machine, edit the boot entry at the GRUB
+menu with `e`, change the `linux` line, and boot with `Ctrl-X` or
+`F10`.
+
 ---
 
 ## 3. Building from source
@@ -84,7 +103,9 @@ faster. After editing kernel fragments or the overlay, plain `make`
 picks the changes up.
 
 Every build also publishes the ISO under a unique name and prints its
-SHA256 at the end of the build log:
+SHA256 at the end of the build log. Release builds use the
+`mentalnet-gnulinux-intel32-<RELEASE>-<CODENAME>.iso` convention (for
+example `mentalnet-gnulinux-intel32-R1-GhostRule.iso`):
 
 ```
 Published: .../output/images/mentalnet-gnulinux-intel32-20260910-212811.iso
@@ -254,6 +275,8 @@ The installed GRUB menu has a 5s timeout and boots automatically.
 | **How to tell which build a VM is actually running** | At the login prompt the build stamp is printed (`Mentalnet GNU/Linux build YYYYMMDD-HHMMSS`); inside the guest check `cat /etc/os-release` (`BUILD_ID=`) or `cat /proc/version`. Useful kernel build markers: `#3 ... 18:45:02` predates the rtl8139 fix, `#4 ... 20:24:17` is the first build with 8139cp. |
 | **Booting the CD runs an older install instead of the live system** | Fixed: the live CD's GRUB core hardcodes `root=(cd)` (the El Torito boot CD itself), so the boot chain never touches any attached disk and an existing Mentalnet install can no longer hijack it. On builds older than this fix, the CD's GRUB searched for `/boot/bzImage` (or a marker file), and since BIOS enumerates disks before the CD, the search landed on the installed system first. |
 | **Boots on Pentium Pro/i686 but hangs at kernel start on Pentium/Pentium MMX (i586)** | Fixed: the kernel is now built for `CONFIG_M586` with `CONFIG_X86_GENERIC` (no CMOV instructions). Builds before this fix used `i386_defconfig`'s `CONFIG_M686` default, which emits CMOV - instant invalid-opcode crash on real i586 CPUs. |
+| **Terminal garbled / typed text repeats after a full-screen app (htop, neofetch)** | Fixed: builds before this change set `TERM=vt100` on the VGA console, so full-screen apps restored the terminal with the wrong sequences. Recovery on any running system: run `reset`. |
+| **Phantom keystrokes / junk commands during or after the install** | Root cause: interrupt storms from APIC/ACPI quirks on era hardware (and emulated boards) starving the keyboard controller; the long silent copy phase also invited typed-ahead input that was replayed as shell commands. Fixed builds ship `noapic acpi=off i8042.dumbkbd=1` on both boot paths (see the kernel command line section) and show per-directory progress with an input drain before finishing. On older builds: let it finish, then run `reset`; avoid typing during the copy; `Ctrl-Q` if the console seems frozen. |
 | **Proxmox: VM boots an older build despite uploading a new ISO** | Proxmox keeps every upload as a separate storage volume, and a VM's CD/DVD drive points at a specific **volume** — renaming or re-uploading a file never updates an existing drive (checksums of the new file do not help either). Delete the stale volume, upload the unique-named ISO from the build log, attach it in Hardware, and check Boot Order (an installed disk can also shadow the CD). |
 | GRUB menu does not appear, or the machine reboots before booting, in QEMU | Try more RAM (`-m 256`). Memory pressure during development was the culprit more than once. |
 | Kernel panic: `Unable to mount root fs` | The CD drive is on an unsupported controller. The kernel targets PIIX-era IDE/ATA; modern SATA-only setups are out of scope. |
