@@ -1,0 +1,49 @@
+#!/bin/sh
+#
+# Load the nftables firewall ruleset from /etc/nftables.conf.
+
+DAEMON="nft"
+CONF="/etc/nftables.conf"
+
+start() {
+	printf 'Loading nftables firewall: '
+	if ! [ -f "$CONF" ]; then
+		echo "MISSING $CONF"
+		return 1
+	fi
+	"$DAEMON" -f "$CONF"
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+stop() {
+	printf 'Flushing nftables ruleset: '
+	"$DAEMON" flush ruleset
+	status=$?
+	if [ "$status" -eq 0 ]; then
+		echo "OK"
+	else
+		echo "FAIL"
+	fi
+	return "$status"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+	start|stop|restart)
+		"$1";;
+	reload)
+		restart;;
+	*)
+		echo "Usage: $0 {start|stop|restart|reload}"
+		exit 1
+esac
