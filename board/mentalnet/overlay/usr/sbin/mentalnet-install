@@ -1,0 +1,212 @@
+#!/bin/sh
+#
+# mentalnet-install - install Mentalnet GNU/Linux from the live CD onto a hard disk
+#
+# Run as root on the live system:  mentalnet-install
+#
+# The installed system boots from its own MBR (GRUB) with the root
+# filesystem on a single ext4 partition (plus optional swap).
+
+set -u
+
+MIN_DISK_SECTORS=819200		# 400 MiB minimum target disk
+BOOT_START_SECTORS=2048		# first sector of root: leaves the MBR gap
+				# free for the GRUB core.img embedding
+MNT=/mnt/hd
+
+msg()	{ printf '%s\n' "$*"; }
+warn()	{ printf 'WARNING: %s\n' "$*"; }
+die()	{ printf 'ERROR: %s\n' "$*" >&2; exit 1; }
+
+# make sure a failed run never leaves the target disk mounted
+cleanup() {
+	grep -q " $MNT " /proc/mounts 2>/dev/null && umount "$MNT" 2>/dev/null
+	[ -n "${TMNT:-}" ] && umount /mnt 2>/dev/null
+	return 0
+}
+trap cleanup EXIT
+
+[ "$(id -u)" -eq 0 ] || die "please run as root"
+
+for t in fdisk mkfs.ext4 mkswap grub-install; do
+	command -v "$t" >/dev/null 2>&1 || die "required tool '$t' not found"
+done
+
+banner() {
+	clear 2>/dev/null
+	msg ""
+	msg "  ============================================================"
+	msg "    Mentalnet GNU/Linux - hard disk installer"
+	msg "  ============================================================"
+	msg ""
+	msg "  This will copy the live system from the CD onto a local"
+	msg "  disk, install the GRUB bootloader, and make the disk"
+	msg "  bootable on its own."
+	msg ""
+}
+
+list_disks() {
+	for d in /sys/block/*; do
+		dev=${d##*/}
+		case "$dev" in
+			sr*|loop*|ram*|zram*|md*|dm-*|fd*|nbd*) continue ;;
+		esac
+		size=$(cat "$d/size" 2>/dev/null) || continue
+		mib=$((size / 2048))
+		model=$(cat "$d/device/model" 2>/dev/null | tr -d ' ')
+		printf '    /dev/%-6s %6s MiB   %s\n' "$dev" "$mib" "${model:-}"
+	done
+}
+
+banner
+msg "  Detected disks:"
+list_disks
+msg ""
+
+printf '  Disk to install to (e.g. sda): '
+read -r DISK
+[ -n "${DISK:-}" ] || die "no disk given"
+case "$DISK" in
+	sr*|loop*|ram*|zram*|md*|dm-*|fd*|nbd*) die "refusing to use $DISK" ;;
+	*[!/a-z0-9]*) die "invalid disk name" ;;
+esac
+DEV="/dev/$DISK"
+SYS="/sys/block/$DISK"
+[ -d "$SYS" ] && [ -b "$DEV" ] || die "$DEV is not a block device"
+
+SIZE=$(cat "$SYS/size")
+[ "$SIZE" -ge "$MIN_DISK_SECTORS" ] \
+	|| die "$DEV is too small (need $((MIN_DISK_SECTORS / 2048)) MiB minimum)"
+
+if grep -q "^$DEV" /proc/mounts; then
+	die "$DEV (or a partition on it) is currently mounted"
+fi
+
+msg ""
+warn "ALL DATA on $DEV will be DESTROYED without further notice."
+printf '  Type YES to continue: '
+read -r ANSWER
+[ "${ANSWER:-}" = "YES" ] || { msg "Aborted."; exit 0; }
+
+# --- swap? ---------------------------------------------------------------
+printf '  Create a swap partition? [y/N]: '
+read -r SWAPANS
+SWAP=0
+case "${SWAPANS:-}" in
+	y|Y|yes|Yes|YES) SWAP=1 ;;
+esac
+
+SWAP_SECTORS=0
+if [ "$SWAP" -eq 1 ]; then
+	MEM_KB=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
+	SWAP_MIB=$((MEM_KB / 1024 * 2))
+	[ "$SWAP_MIB" -gt 512 ] && SWAP_MIB=512
+	[ "$SWAP_MIB" -lt 32 ] && SWAP_MIB=32
+	SWAP_SECTORS=$((SWAP_MIB * 2048))
+	msg "  Swap partition: ${SWAP_MIB} MiB"
+fi
+
+# --- partition -----------------------------------------------------------
+msg "  Partitioning $DEV (MBR, root at sector $BOOT_START_SECTORS) ..."
+
+if [ "$SWAP" -eq 1 ]; then
+	P1_END=$((SIZE - SWAP_SECTORS - 1))
+	P2_START=$((SIZE - SWAP_SECTORS))
+	printf 'o\nn\np\n1\n%d\n%d\nn\np\n2\n%d\n%d\nt\n2\n82\na\n1\nw\n' \
+		"$BOOT_START_SECTORS" "$P1_END" \
+		"$P2_START" "$((SIZE - 1))" \
+	| fdisk -u "$DEV" >/dev/null || die "fdisk failed"
+else
+	printf 'o\nn\np\n1\n%d\n%d\na\nw\n' \
+		"$BOOT_START_SECTORS" "$((SIZE - 1))" \
+	| fdisk -u "$DEV" >/dev/null || die "fdisk failed"
+fi
+
+ROOTPART="${DEV}1"
+i=0
+while [ ! -b "$ROOTPART" ] && [ "$i" -lt 10 ]; do
+	i=$((i + 1))
+	partprobe "$DEV" 2>/dev/null
+	sleep 1
+done
+[ -b "$ROOTPART" ] || die "$ROOTPART did not appear after partitioning"
+
+# --- filesystems ---------------------------------------------------------
+msg "  Creating ext4 filesystem on $ROOTPART ..."
+mkfs.ext4 -F -L rootfs "$ROOTPART" >/dev/null || die "mkfs.ext4 failed"
+
+if [ "$SWAP" -eq 1 ]; then
+	msg "  Creating swap on ${DEV}2 ..."
+	mkswap "${DEV}2" >/dev/null || die "mkswap failed"
+fi
+
+# --- copy the live system ------------------------------------------------
+# /mnt lives on the read-only CD, so put a writable tmpfs over it to
+# get a usable mount point
+TMNT=
+if ! grep -q ' /mnt ' /proc/mounts; then
+	mount -t tmpfs -o mode=0755 tmpfs /mnt || die "cannot set up /mnt"
+	TMNT=1
+fi
+mkdir -p "$MNT"
+mount -t ext4 "$ROOTPART" "$MNT" || die "could not mount $ROOTPART"
+
+msg "  Copying the system (this takes a while) ..."
+
+# NOTE: one single tar invocation per side. busybox tar stops reading at
+# the first end-of-archive marker, so piping several archives through
+# '-' would silently transfer only the first directory.
+DIRS=
+for d in bin boot etc home lib lib32 lib64 media opt root sbin srv usr var; do
+	[ -e "/$d" ] && DIRS="$DIRS $d"
+done
+(cd / && tar -cf - $DIRS) | (cd "$MNT" && tar -xpf -) \
+	|| die "copying failed"
+
+# mount points that live in tmpfs on the CD
+mkdir -p "$MNT/proc" "$MNT/sys" "$MNT/dev" "$MNT/tmp" "$MNT/run" "$MNT/mnt"
+
+# CD-only artifacts must not end up on the disk
+rm -f "$MNT/boot/grub/grub-eltorito.img"
+
+# --- /etc/fstab ----------------------------------------------------------
+msg "  Writing /etc/fstab ..."
+cat > "$MNT/etc/fstab" <<EOF
+# /etc/fstab - generated by mentalnet-install
+$ROOTPART / ext4 rw,noatime 0 1
+proc /proc proc defaults 0 0
+devpts /dev/pts devpts defaults,gid=5,mode=620,ptmxmode=0666 0 0
+tmpfs /dev/shm tmpfs mode=1777 0 0
+tmpfs /tmp tmpfs mode=1777 0 0
+tmpfs /run tmpfs mode=0755,nosuid,nodev 0 0
+sysfs /sys sysfs defaults 0 0
+EOF
+if [ "$SWAP" -eq 1 ]; then
+	printf '%s none swap sw 0 0\n' "${DEV}2" >> "$MNT/etc/fstab"
+fi
+
+# --- bootloader ----------------------------------------------------------
+msg "  Writing bootloader configuration ..."
+sed "s|@ROOTDEV@|$ROOTPART|" /usr/share/mentalnet/grub-disk.cfg \
+	> "$MNT/boot/grub/grub.cfg" \
+	|| die "could not write grub.cfg"
+
+msg "  Installing GRUB to the MBR of $DEV ..."
+grub-install --boot-directory="$MNT/boot" "$DEV" >/dev/null 2>&1 \
+	|| die "grub-install failed"
+
+sync
+umount "$MNT" || umount -f "$MNT" || die "could not unmount $MNT"
+[ -n "$TMNT" ] && umount /mnt
+
+msg ""
+msg "  ============================================================"
+msg "    Installation complete!"
+msg "  ============================================================"
+msg ""
+msg "  Root partition : $ROOTPART (ext4)"
+[ "$SWAP" -eq 1 ] && msg "  Swap           : ${DEV}2 (${SWAP_MIB} MiB)"
+msg "  Login          : root / mnlinux"
+msg ""
+msg "  Remove the CD and reboot:   poweroff"
+msg ""
