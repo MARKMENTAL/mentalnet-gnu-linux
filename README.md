@@ -40,6 +40,48 @@ disk installer (`mentalnet-install`).
 | CPU | i586 (Pentium / Pentium MMX) or any newer x86 |
 | RAM | 128 MB minimum (64 MB usually works) |
 
+## Building from source
+
+This repository is **not** a full Buildroot tree — it is an overlay
+meant to be applied on top of a pristine Buildroot checkout.
+
+1. Download and extract the pristine Buildroot 2025.02.17 LTS
+   tarball (do not use a git checkout of master; this layer is
+   written against 2025.02.17):
+
+   ```
+   wget https://buildroot.org/downloads/buildroot-2025.02.17.tar.gz
+   tar xf buildroot-2025.02.17.tar.gz
+   cd buildroot-2025.02.17
+   ```
+
+2. Copy this repository's contents over the extracted tree,
+   preserving paths:
+
+   | Source (this repo) | Destination (Buildroot tree) |
+   |--------------------|------------------------------|
+   | `board/mentalnet/` | `board/mentalnet/` |
+   | `fs/iso9660/grub.cfg` | `fs/iso9660/grub.cfg` — **overwrites an upstream file** |
+   | `.config` | `.config` |
+   | `logos/`, `README.md`, `LICENSE` | same paths (repo-local, not used by the build) |
+
+3. Build:
+
+   ```
+   make
+   ```
+
+   Host dependencies are listed in the
+   [Buildroot manual](https://buildroot.org/downloads/manual/manual.html#requirement).
+   Outputs land in `output/images/` — see the
+   [install guide](board/mentalnet/INSTALL-GUIDE.md) for what each
+   artifact is and how to test it.
+
+The committed `.config` is based on the default i386 defconfig plus
+the Mentalnet selections (GRUB2 embedded config, e2fsprogs, getty
+TERM, and so on). Copying it reproduces the released system exactly;
+alternatively, start fresh with `make menuconfig` and roll your own.
+
 ## Security after install
 
 The default root password is **`mnlinux`** — please change it after
@@ -107,7 +149,9 @@ the Free Software Foundation, either version 3 of the License, or
 
 The underlying [Buildroot](https://buildroot.org) tree remains under
 its original license (see [`COPYING`](COPYING), GPL-2.0-or-later);
-we claim no rights over it.
+we claim no rights over it. This repository is an overlay meant to
+be applied on top of a pristine Buildroot 2025.02.17 tree, not a
+full fork.
 
 The OS image produced by the build is an aggregation of many
 components, each of which keeps its own license (the Linux kernel is
