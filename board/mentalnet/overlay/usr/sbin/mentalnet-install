@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Mark Robillard Jr (MARKMENTAL)
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # mentalnet-install - install Mentalnet GNU/Linux from the live CD onto a hard disk
 #

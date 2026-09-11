@@ -88,3 +88,33 @@ passwd -l root
 The full install and test guide — hardware requirements, QEMU
 testing, the install walkthrough and troubleshooting — lives in
 [`board/mentalnet/INSTALL-GUIDE.md`](board/mentalnet/INSTALL-GUIDE.md).
+
+## License
+
+Mentalnet GNU/Linux — the scripts, configuration, documentation and
+artwork added on top of Buildroot (`board/mentalnet/`, `logos/`,
+`README.md`, `LICENSE`, and the modifications made to Buildroot
+files) — is
+
+> Copyright (C) 2026 Mark Robillard Jr (MARKMENTAL)
+>
+> SPDX-License-Identifier: GPL-3.0-or-later
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version. See [`LICENSE`](LICENSE).
+
+The underlying [Buildroot](https://buildroot.org) tree remains under
+its original license (see [`COPYING`](COPYING), GPL-2.0-or-later);
+we claim no rights over it.
+
+The OS image produced by the build is an aggregation of many
+components, each of which keeps its own license (the Linux kernel is
+GPL-2.0, BusyBox is GPL-2.0, and so on).
+
+Logo credit: the Mentalnet logo is part of this project and licensed
+under GPL-3.0-or-later with the rest of it. Credit to the
+[GNU project](https://www.gnu.org) and the
+[Buildroot project](https://buildroot.org) for their logos, which
+appear in [`logos/mnlogo-gpl-buildroot.png`](logos/mnlogo-gpl-buildroot.png).

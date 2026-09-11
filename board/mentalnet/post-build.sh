@@ -1,4 +1,6 @@
 #!/bin/sh
+# Copyright (C) 2026 Mark Robillard Jr (MARKMENTAL)
+# SPDX-License-Identifier: GPL-3.0-or-later
 #
 # post-build.sh - stamp the Mentalnet root filesystem with a build id
 #
