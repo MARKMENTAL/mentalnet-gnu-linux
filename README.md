@@ -4,7 +4,7 @@ A light, TTY-only GNU/Linux distribution for 90s Intel Pentium-class
 (i586) machines, built with [Buildroot](https://buildroot.org).
 
 <p align="center">
-  <img src="logos/mnlogo-text.png" alt="Mentalnet GNU/Linux — Modern GNU/Linux for Legacy i586 Pentiums" width="400">
+  <img src="logos/mnlogo.jpg" alt="Mentalnet GNU/Linux — Modern GNU/Linux for Legacy i586 Pentiums" width="400">
 </p>
 
 The ISO is a live CD: the entire system runs from the CD with a
@@ -157,8 +157,5 @@ The OS image produced by the build is an aggregation of many
 components, each of which keeps its own license (the Linux kernel is
 GPL-2.0, BusyBox is GPL-2.0, and so on).
 
-Logo credit: the Mentalnet logo is part of this project and licensed
-under GPL-3.0-or-later with the rest of it. Credit to the
-[GNU project](https://www.gnu.org) and the
-[Buildroot project](https://buildroot.org) for their logos, which
-appear in [`logos/mnlogo-gpl-buildroot.png`](logos/mnlogo-gpl-buildroot.png).
+The Mentalnet logo (`logos/mnlogo.jpg`) is part of this project and
+licensed under GPL-3.0-or-later with the rest of it.
