@@ -5,11 +5,12 @@
 # Run as root on the live system:  mentalnet-install
 #
 # The installed system boots from its own MBR (GRUB) with the root
-# filesystem on a single ext4 partition (plus optional swap).
+# filesystem on a single ext4 partition.
 
 set -u
 
-MIN_DISK_SECTORS=819200		# 400 MiB minimum target disk
+MIN_DISK_SECTORS=2097152		# 1 GiB minimum target disk (rootfs is ~150MB,
+				# and old disks are cheap)
 BOOT_START_SECTORS=2048		# first sector of root: leaves the MBR gap
 				# free for the GRUB core.img embedding
 MNT=/mnt/hd
@@ -28,7 +29,7 @@ trap cleanup EXIT
 
 [ "$(id -u)" -eq 0 ] || die "please run as root"
 
-for t in fdisk mkfs.ext4 mkswap grub-install; do
+for t in fdisk mkfs.ext4 grub-install; do
 	command -v "$t" >/dev/null 2>&1 || die "required tool '$t' not found"
 done
 
@@ -88,39 +89,12 @@ printf '  Type YES to continue: '
 read -r ANSWER
 [ "${ANSWER:-}" = "YES" ] || { msg "Aborted."; exit 0; }
 
-# --- swap? ---------------------------------------------------------------
-printf '  Create a swap partition? [y/N]: '
-read -r SWAPANS
-SWAP=0
-case "${SWAPANS:-}" in
-	y|Y|yes|Yes|YES) SWAP=1 ;;
-esac
-
-SWAP_SECTORS=0
-if [ "$SWAP" -eq 1 ]; then
-	MEM_KB=$(awk '/^MemTotal:/{print $2}' /proc/meminfo)
-	SWAP_MIB=$((MEM_KB / 1024 * 2))
-	[ "$SWAP_MIB" -gt 512 ] && SWAP_MIB=512
-	[ "$SWAP_MIB" -lt 32 ] && SWAP_MIB=32
-	SWAP_SECTORS=$((SWAP_MIB * 2048))
-	msg "  Swap partition: ${SWAP_MIB} MiB"
-fi
-
 # --- partition -----------------------------------------------------------
 msg "  Partitioning $DEV (MBR, root at sector $BOOT_START_SECTORS) ..."
 
-if [ "$SWAP" -eq 1 ]; then
-	P1_END=$((SIZE - SWAP_SECTORS - 1))
-	P2_START=$((SIZE - SWAP_SECTORS))
-	printf 'o\nn\np\n1\n%d\n%d\nn\np\n2\n%d\n%d\nt\n2\n82\na\n1\nw\n' \
-		"$BOOT_START_SECTORS" "$P1_END" \
-		"$P2_START" "$((SIZE - 1))" \
-	| fdisk -u "$DEV" >/dev/null || die "fdisk failed"
-else
-	printf 'o\nn\np\n1\n%d\n%d\na\nw\n' \
-		"$BOOT_START_SECTORS" "$((SIZE - 1))" \
-	| fdisk -u "$DEV" >/dev/null || die "fdisk failed"
-fi
+printf 'o\nn\np\n1\n%d\n%d\na\n1\nw\n' \
+	"$BOOT_START_SECTORS" "$((SIZE - 1))" \
+| fdisk -u "$DEV" >/dev/null || die "fdisk failed"
 
 ROOTPART="${DEV}1"
 i=0
@@ -131,14 +105,21 @@ while [ ! -b "$ROOTPART" ] && [ "$i" -lt 10 ]; do
 done
 [ -b "$ROOTPART" ] || die "$ROOTPART did not appear after partitioning"
 
+# --- show the result and get final confirmation --------------------------
+msg ""
+msg "  New partition table on $DEV:"
+fdisk -l "$DEV"
+msg ""
+printf '  Proceed with installation? [y/N]: '
+read -r GO
+case "${GO:-}" in
+	y|Y|yes|Yes|YES) ;;
+	*) msg "Aborted."; exit 0 ;;
+esac
+
 # --- filesystems ---------------------------------------------------------
 msg "  Creating ext4 filesystem on $ROOTPART ..."
 mkfs.ext4 -F -L rootfs "$ROOTPART" >/dev/null || die "mkfs.ext4 failed"
-
-if [ "$SWAP" -eq 1 ]; then
-	msg "  Creating swap on ${DEV}2 ..."
-	mkswap "${DEV}2" >/dev/null || die "mkswap failed"
-fi
 
 # --- copy the live system ------------------------------------------------
 # /mnt lives on the read-only CD, so put a writable tmpfs over it to
@@ -166,6 +147,11 @@ done
 # mount points that live in tmpfs on the CD
 mkdir -p "$MNT/proc" "$MNT/sys" "$MNT/dev" "$MNT/tmp" "$MNT/run" "$MNT/mnt"
 
+# the live system's resolv.conf is a symlink into tmpfs (udhcpc writes
+# through it on the CD); on the disk udhcpc needs a real file
+rm -f "$MNT/etc/resolv.conf"
+: > "$MNT/etc/resolv.conf"
+
 # CD-only artifacts must not end up on the disk
 rm -f "$MNT/boot/grub/grub-eltorito.img"
 
@@ -181,9 +167,6 @@ tmpfs /tmp tmpfs mode=1777 0 0
 tmpfs /run tmpfs mode=0755,nosuid,nodev 0 0
 sysfs /sys sysfs defaults 0 0
 EOF
-if [ "$SWAP" -eq 1 ]; then
-	printf '%s none swap sw 0 0\n' "${DEV}2" >> "$MNT/etc/fstab"
-fi
 
 # --- bootloader ----------------------------------------------------------
 msg "  Writing bootloader configuration ..."
@@ -205,7 +188,6 @@ msg "    Installation complete!"
 msg "  ============================================================"
 msg ""
 msg "  Root partition : $ROOTPART (ext4)"
-[ "$SWAP" -eq 1 ] && msg "  Swap           : ${DEV}2 (${SWAP_MIB} MiB)"
 msg "  Login          : root / mnlinux"
 msg ""
 msg "  Remove the CD and reboot:   poweroff"

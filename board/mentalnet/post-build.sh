@@ -14,7 +14,8 @@
 set -e
 
 TARGET_DIR="${1}"
-STAMP="$(date +%Y%m%d-%H%M%S)"
+#STAMP="$(date +%Y%m%d-%H%M%S)"
+STAMP='R1 "RollingGirl-SE"'
 IMAGES_DIR="$(dirname "${TARGET_DIR}")/images"
 
 # record the stamp for post-image.sh
@@ -26,10 +27,10 @@ echo "${STAMP}" > "${IMAGES_DIR}/.mn-build-stamp"
 OS_RELEASE="${TARGET_DIR}/usr/lib/os-release"
 cat > "${OS_RELEASE}" <<EOF
 NAME="Mentalnet GNU/Linux"
-VERSION="0.1 (intel32, build ${STAMP})"
+VERSION="(build ${STAMP})"
 ID=mentalnet
-VERSION_ID="0.1"
-PRETTY_NAME="Mentalnet GNU/Linux intel32 0.1 (build ${STAMP})"
+VERSION_ID="R1"
+PRETTY_NAME="Mentalnet GNU/Linux (build ${STAMP})"
 BUILD_ID="${STAMP}"
 EOF
 

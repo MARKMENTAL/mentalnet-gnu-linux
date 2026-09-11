@@ -18,7 +18,7 @@ same CD carries a built-in hard disk installer (`mentalnet-install`).
 
 | Component   | Requirement                                              |
 |-------------|----------------------------------------------------------|
-| CPU         | i586 (generic Pentium) or any newer x86                  |
+| CPU         | i586 (Pentium / Pentium MMX) or any newer x86; `uname -m` reports `i586` |
 | RAM         | 128 MB minimum (64 MB usually works)                      |
 | CD drive    | IDE/ATAPI CD-ROM (PIIX-era ATA controller)                |
 | Display     | VGA text console, PS/2 keyboard/mouse                     |
@@ -28,7 +28,7 @@ same CD carries a built-in hard disk installer (`mentalnet-install`).
 
 ### Installing to a hard disk
 
-- IDE/ATA disk with at least **400 MB** free (the whole disk is wiped)
+- IDE/ATA disk with at least **1 GiB** free (the whole disk is wiped)
 - The machine must be able to boot from CD (El Torito, BIOS boot)
 
 ---
@@ -167,7 +167,7 @@ Log in and run `mentalnet-install`:
 ```
 Disk to install to (e.g. sda): sda
 Type YES to continue: YES
-Create a swap partition? [y/N]: y
+Proceed with installation? [y/N]: y
 ```
 
 When it prints `Installation complete!`:
@@ -208,13 +208,15 @@ config) should show `EXT4-fs (sda1): mounted ... r/w` and
    - **Disk to install to** — e.g. `sda` (the installer lists
      detected disks with their sizes first)
    - **Type YES** — destroys everything on that disk
-   - **Create a swap partition? [y/N]** — recommended on machines
-     with little RAM; the swap is sized at 2x RAM, capped at 512 MB
+   - the new partition table is then shown — sanity-check the disk
+     size before continuing
+   - **Proceed with installation? [y/N]** — final confirmation before
+     anything is written to the disk
 
 5. The installer then:
    - writes a fresh MBR partition table (root partition starts at
      sector 2048, leaving room for the GRUB core image)
-   - creates an ext4 filesystem labelled `rootfs` (+ swap if chosen)
+   - creates an ext4 filesystem labelled `rootfs`
    - copies the whole system from the CD
    - generates `/etc/fstab`
    - installs GRUB to the MBR and writes the boot menu
@@ -251,12 +253,13 @@ The installed GRUB menu has a 5s timeout and boots automatically.
 |---------|--------------------|
 | **How to tell which build a VM is actually running** | At the login prompt the build stamp is printed (`Mentalnet GNU/Linux build YYYYMMDD-HHMMSS`); inside the guest check `cat /etc/os-release` (`BUILD_ID=`) or `cat /proc/version`. Useful kernel build markers: `#3 ... 18:45:02` predates the rtl8139 fix, `#4 ... 20:24:17` is the first build with 8139cp. |
 | **Booting the CD runs an older install instead of the live system** | Fixed: the live CD's GRUB core hardcodes `root=(cd)` (the El Torito boot CD itself), so the boot chain never touches any attached disk and an existing Mentalnet install can no longer hijack it. On builds older than this fix, the CD's GRUB searched for `/boot/bzImage` (or a marker file), and since BIOS enumerates disks before the CD, the search landed on the installed system first. |
+| **Boots on Pentium Pro/i686 but hangs at kernel start on Pentium/Pentium MMX (i586)** | Fixed: the kernel is now built for `CONFIG_M586` with `CONFIG_X86_GENERIC` (no CMOV instructions). Builds before this fix used `i386_defconfig`'s `CONFIG_M686` default, which emits CMOV - instant invalid-opcode crash on real i586 CPUs. |
 | **Proxmox: VM boots an older build despite uploading a new ISO** | Proxmox keeps every upload as a separate storage volume, and a VM's CD/DVD drive points at a specific **volume** — renaming or re-uploading a file never updates an existing drive (checksums of the new file do not help either). Delete the stale volume, upload the unique-named ISO from the build log, attach it in Hardware, and check Boot Order (an installed disk can also shadow the CD). |
 | GRUB menu does not appear, or the machine reboots before booting, in QEMU | Try more RAM (`-m 256`). Memory pressure during development was the culprit more than once. |
 | Kernel panic: `Unable to mount root fs` | The CD drive is on an unsupported controller. The kernel targets PIIX-era IDE/ATA; modern SATA-only setups are out of scope. |
 | `Remounting root filesystem read-write ... failed` on live boot | Cosmetic. The CD root is read-only by design; all writes go to tmpfs. |
 | Installer: `/dev/sdX1 did not appear after partitioning` | The kernel was still re-reading the partition table. Simply run the installer again. |
-| Installer: `disk is too small` | At least 400 MB is needed. |
+| Installer: `disk is too small` | At least 1 GiB is needed. |
 | Forgot the password | It is `mnlinux` (set at build time in the Buildroot config). |
 | No network | Check the NIC against the supported list in section 1. QEMU/Proxmox: `rtl8139`, `virtio-net-pci`, `ne2k_pci` or the default e1000 all work. |
 
