@@ -250,6 +250,7 @@ The installed GRUB menu has a 5s timeout and boots automatically.
 | Symptom | Likely cause / fix |
 |---------|--------------------|
 | **How to tell which build a VM is actually running** | At the login prompt the build stamp is printed (`Mentalnet GNU/Linux build YYYYMMDD-HHMMSS`); inside the guest check `cat /etc/os-release` (`BUILD_ID=`) or `cat /proc/version`. Useful kernel build markers: `#3 ... 18:45:02` predates the rtl8139 fix, `#4 ... 20:24:17` is the first build with 8139cp. |
+| **Booting the CD runs an older install instead of the live system** | Fixed: the live medium is identified by `/boot/grub/grub-eltorito.img` (a file only the ISO carries), so an existing Mentalnet install on disk no longer hijacks the boot. On builds older than this fix, the CD's GRUB searched for `/boot/bzImage`, found the disk first (BIOS enumerates disks before the CD) and chained into the installed system. |
 | **Proxmox: VM boots an older build despite uploading a new ISO** | Proxmox keeps every upload as a separate storage volume, and a VM's CD/DVD drive points at a specific **volume** — renaming or re-uploading a file never updates an existing drive (checksums of the new file do not help either). Delete the stale volume, upload the unique-named ISO from the build log, attach it in Hardware, and check Boot Order (an installed disk can also shadow the CD). |
 | GRUB menu does not appear, or the machine reboots before booting, in QEMU | Try more RAM (`-m 256`). Memory pressure during development was the culprit more than once. |
 | Kernel panic: `Unable to mount root fs` | The CD drive is on an unsupported controller. The kernel targets PIIX-era IDE/ATA; modern SATA-only setups are out of scope. |
@@ -267,7 +268,7 @@ Everything Mentalnet-specific lives here:
 
 | File | Purpose |
 |------|---------|
-| `board/mentalnet/grub-embedded.cfg` | config embedded into the GRUB core image: searches for the medium containing `/boot/bzImage` instead of hardcoding a device |
+| `board/mentalnet/grub-embedded.cfg` | config embedded into the GRUB core image: finds the live medium via `/boot/grub/grub-eltorito.img` (a file only the ISO carries), so the CD always boots the live system even with an installed disk attached. NB: GRUB early configs support plain commands only - no comment lines, no `\` continuations, no `\|\|` operators. |
 | `board/mentalnet/linux-slim.config` | kernel config fragment: keeps the classic PCI NICs, ATA/ATAPI, USB HID/storage, serial and VGA console; drops wireless, sound, DRM, RAID, PCMCIA, debug |
 | `board/mentalnet/overlay/usr/sbin/mentalnet-install` | the hard disk installer |
 | `board/mentalnet/overlay/usr/share/mentalnet/grub-disk.cfg` | boot menu template written to installed systems (`@ROOTDEV@` is replaced) |
