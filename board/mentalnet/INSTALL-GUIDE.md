@@ -275,7 +275,7 @@ Everything Mentalnet-specific lives here:
 | `board/mentalnet/overlay/etc/resolv.conf` | symlink so DHCP DNS works on the read-only CD |
 | `board/mentalnet/overlay/etc/lighttpd/` | web server configuration |
 | `fs/iso9660/grub.cfg` | live CD boot menu (`root=/dev/sr0 ro`) |
-| `board/mentalnet/post-build.sh` | stamps `BUILD_ID` into os-release and the login banner (wired via `BR2_ROOTFS_POST_BUILD_SCRIPT`) |
+| `board/mentalnet/post-build.sh` | writes the Mentalnet-branded os-release (`BUILD_ID` + `PRETTY_NAME` with the build stamp) and the login banner (wired via `BR2_ROOTFS_POST_BUILD_SCRIPT`) |
 | `board/mentalnet/post-image.sh` | publishes the ISO under a unique dated name + SHA256 (wired via `BR2_ROOTFS_POST_IMAGE_SCRIPT`) |
 | `localversion.config` | kernel version suffix (`-mentalnet-intel32`) |
 | `.config` | Buildroot configuration: GRUB2 embedded config path and module list, kernel fragment list, e2fsprogs/grub install tools |

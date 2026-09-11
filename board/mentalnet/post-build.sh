@@ -21,10 +21,17 @@ IMAGES_DIR="$(dirname "${TARGET_DIR}")/images"
 mkdir -p "${IMAGES_DIR}"
 echo "${STAMP}" > "${IMAGES_DIR}/.mn-build-stamp"
 
-# /etc/os-release (regular file lives at /usr/lib/os-release)
+# /etc/os-release (regular file lives at /usr/lib/os-release; /etc/os-release
+# is a symlink to it) - Mentalnet branding, Buildroot defaults dropped
 OS_RELEASE="${TARGET_DIR}/usr/lib/os-release"
-sed -i '/^BUILD_ID=/d' "${OS_RELEASE}"
-echo "BUILD_ID=\"${STAMP}\"" >> "${OS_RELEASE}"
+cat > "${OS_RELEASE}" <<EOF
+NAME="Mentalnet GNU/Linux"
+VERSION="0.1 (intel32, build ${STAMP})"
+ID=mentalnet
+VERSION_ID="0.1"
+PRETTY_NAME="Mentalnet GNU/Linux intel32 0.1 (build ${STAMP})"
+BUILD_ID="${STAMP}"
+EOF
 
 # login banner
 ISSUE="${TARGET_DIR}/etc/issue"
