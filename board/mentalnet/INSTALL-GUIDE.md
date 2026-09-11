@@ -24,7 +24,7 @@ same CD carries a built-in hard disk installer (`mentalnet-install`).
 | Display     | VGA text console, PS/2 keyboard/mouse                     |
 | USB         | USB keyboards, mice and mass storage (UHCI/OHCI/EHCI)     |
 | Serial      | 8250 UART (kernel log is mirrored to COM1)                |
-| NICs (opt.) | NE2000-PCI clones (RTL8029 etc.), Intel e100/e1000/e1000e, Realtek 8139, 3Com 3c59x |
+| NICs (opt.) | NE2000-PCI clones (RTL8029 etc.), Intel e100/e1000/e1000e, Realtek 8139 / 8139C+ (rtl8139, incl. QEMU/Proxmox emulation), 3Com 3c59x, virtio-net (virtualized environments) |
 
 ### Installing to a hard disk
 
@@ -82,6 +82,17 @@ Build outputs land in `output/images/`:
 A full build takes a while; rebuilds after config changes are much
 faster. After editing kernel fragments or the overlay, plain `make`
 picks the changes up.
+
+Every build also publishes the ISO under a unique name and prints its
+SHA256 at the end of the build log:
+
+```
+Published: .../output/images/mentalnet-gnulinux-intel32-20260910-212811.iso
+0dcfbcb0...c308c69  output/images/mentalnet-gnulinux-intel32-20260910-212811.iso
+```
+
+Upload **that** file to hypervisors — see the Proxmox pitfall in the
+troubleshooting section before attaching it to an existing VM.
 
 ---
 
@@ -238,13 +249,15 @@ The installed GRUB menu has a 5s timeout and boots automatically.
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
+| **How to tell which build a VM is actually running** | At the login prompt the build stamp is printed (`Mentalnet GNU/Linux build YYYYMMDD-HHMMSS`); inside the guest check `cat /etc/os-release` (`BUILD_ID=`) or `cat /proc/version`. Useful kernel build markers: `#3 ... 18:45:02` predates the rtl8139 fix, `#4 ... 20:24:17` is the first build with 8139cp. |
+| **Proxmox: VM boots an older build despite uploading a new ISO** | Proxmox keeps every upload as a separate storage volume, and a VM's CD/DVD drive points at a specific **volume** — renaming or re-uploading a file never updates an existing drive (checksums of the new file do not help either). Delete the stale volume, upload the unique-named ISO from the build log, attach it in Hardware, and check Boot Order (an installed disk can also shadow the CD). |
 | GRUB menu does not appear, or the machine reboots before booting, in QEMU | Try more RAM (`-m 256`). Memory pressure during development was the culprit more than once. |
 | Kernel panic: `Unable to mount root fs` | The CD drive is on an unsupported controller. The kernel targets PIIX-era IDE/ATA; modern SATA-only setups are out of scope. |
 | `Remounting root filesystem read-write ... failed` on live boot | Cosmetic. The CD root is read-only by design; all writes go to tmpfs. |
 | Installer: `/dev/sdX1 did not appear after partitioning` | The kernel was still re-reading the partition table. Simply run the installer again. |
 | Installer: `disk is too small` | At least 400 MB is needed. |
 | Forgot the password | It is `mnlinux` (set at build time in the Buildroot config). |
-| No network | Check the NIC against the supported list in section 1. QEMU: use `-nic model=ne2k_pci` or the default e1000. |
+| No network | Check the NIC against the supported list in section 1. QEMU/Proxmox: `rtl8139`, `virtio-net-pci`, `ne2k_pci` or the default e1000 all work. |
 
 ---
 
@@ -261,5 +274,7 @@ Everything Mentalnet-specific lives here:
 | `board/mentalnet/overlay/etc/resolv.conf` | symlink so DHCP DNS works on the read-only CD |
 | `board/mentalnet/overlay/etc/lighttpd/` | web server configuration |
 | `fs/iso9660/grub.cfg` | live CD boot menu (`root=/dev/sr0 ro`) |
+| `board/mentalnet/post-build.sh` | stamps `BUILD_ID` into os-release and the login banner (wired via `BR2_ROOTFS_POST_BUILD_SCRIPT`) |
+| `board/mentalnet/post-image.sh` | publishes the ISO under a unique dated name + SHA256 (wired via `BR2_ROOTFS_POST_IMAGE_SCRIPT`) |
 | `localversion.config` | kernel version suffix (`-mentalnet-intel32`) |
 | `.config` | Buildroot configuration: GRUB2 embedded config path and module list, kernel fragment list, e2fsprogs/grub install tools |
