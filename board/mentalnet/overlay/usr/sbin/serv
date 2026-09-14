@@ -1,0 +1,75 @@
+#!/bin/sh
+# Copyright (C) 2026 Mark Robillard Jr (MARKMENTAL)
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+action=""
+now="0"
+target=""
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        enable|disable)
+            action="$1"
+            ;;
+        --now)
+            now="1"
+            ;;
+        *)
+            target="$1"
+            ;;
+    esac
+    shift
+done
+
+if [ -z "$action" ] || [ -z "$target" ]; then
+    echo "Usage: serv {enable|disable} [--now] <path_to_script>" >&2
+    exit 1
+fi
+
+dir="${target%/*}"
+file="${target##*/}"
+
+if [ "$dir" = "$target" ]; then
+    dir="."
+fi
+
+case "$action" in
+    enable)
+        case "$file" in
+            disabled-*)
+                newfile="${file#disabled-}"
+                mv "$dir/$file" "$dir/$newfile"
+                if [ "$now" = "1" ]; then
+                    "$dir/$newfile" start
+                fi
+                ;;
+            *)
+                if [ "$now" = "1" ]; then
+                    "$dir/$file" start
+                fi
+                ;;
+        esac
+        ;;
+    disable)
+        case "$file" in
+            disabled-*)
+                if [ "$now" = "1" ]; then
+                    "$dir/$file" stop
+                fi
+                ;;
+            *)
+                newfile="disabled-$file"
+                mv "$dir/$file" "$dir/$newfile"
+                if [ "$now" = "1" ]; then
+                    "$dir/$newfile" stop
+                fi
+                ;;
+        esac
+        ;;
+    *)
+        echo "Error: unknown action '$action'. Use 'enable' or 'disable'." >&2
+        exit 1
+        ;;
+esac
+
+

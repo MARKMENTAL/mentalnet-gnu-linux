@@ -18,8 +18,8 @@ set -e
 TARGET_DIR="${1}"
 #STAMP="$(date +%Y%m%d-%H%M%S)"
 RELEASE="R1"
-CODENAME="FirstStorm"
-STAMP="${RELEASE} \"${CODENAME}\""        # pretty form: R1 "GhostRule"
+CODENAME="LovePara"
+STAMP="${RELEASE} ${CODENAME}"        # pretty form: R1 ${CODENAME}
 STAMP_SAFE="${RELEASE}-${CODENAME}"       # sanitized:  R1-GhostRule
 IMAGES_DIR="$(dirname "${TARGET_DIR}")/images"
 

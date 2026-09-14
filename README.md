@@ -13,8 +13,8 @@ disk installer (`mentalnet-install`).
 
 ## Current release
 
-**R1 "FirstStorm"** — named after DECO*27's
-*Chūlán ~First Storm~* (初嵐～First Storm～).
+**R1 "LovePara"** — named after DECO*27's *ラブパラ (Love Para)*,
+feat. Hatsune Miku.
 
 ## Versioning
 
@@ -27,7 +27,8 @@ disk installer (`mentalnet-install`).
 | Release | Codename | Song | Notes |
 |---------|----------|------|-------|
 | R1 | Mesmerizer | *Mesmerizer* — 32ki (Hatsune Miku & Kasane Teto) | Initial release |
-| R1 | **FirstStorm** | *Chūlán ~First Storm~ (初嵐～First Storm～)* — DECO*27 | **Current** — swap-free installer, true i586 support, terminal/input hardening, interrupt-storm fixes |
+| R1 | FirstStorm | *Chūlán ~First Storm~ (初嵐～First Storm～)* — DECO*27 | Swap-free installer, true i586 support, terminal/input hardening, interrupt-storm fixes |
+| R1 | **LovePara** | *ラブパラ (Love Para)* — DECO*27 feat. Hatsune Miku | **Current** — app-server stack (PHP/Ruby/Perl, php-fpm, lighttpd `/proxy/` → port 1337), tcc on-target C dev with glibc headers, gesftpserver, SiS 900 / VIA Rhine / Tigon3 NICs, fastfetch, nano, en_US.UTF-8 locale |
 
 ## Quick facts
 
