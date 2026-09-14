@@ -52,7 +52,7 @@ Services started at boot:
 | dropbear   | SSH server, port 22                            |
 | chronyd    | NTP time sync                                  |
 | crond      | cron daemon                                    |
-| iptables   | firewall rules                                 |
+| nftables   | firewall rules                                 |
 
 DNS from DHCP works on the live CD too: `/etc/resolv.conf` is a
 symlink into tmpfs that `udhcpc` writes through.
