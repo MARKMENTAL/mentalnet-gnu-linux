@@ -13,8 +13,8 @@ disk installer (`mentalnet-install`).
 
 ## Current release
 
-**R1 "LovePara"** — named after DECO*27's *ラブパラ (Love Para)*,
-feat. Hatsune Miku.
+**R1 "StreamingHeart"** — named after DECO*27's *ストリーミングハート
+(Streaming Heart)*, feat. Hatsune Miku.
 
 ## Versioning
 
@@ -28,7 +28,8 @@ feat. Hatsune Miku.
 |---------|----------|------|-------|
 | R1 | Mesmerizer | *Mesmerizer* — 32ki (Hatsune Miku & Kasane Teto) | Initial release |
 | R1 | FirstStorm | *Chūlán ~First Storm~ (初嵐～First Storm～)* — DECO*27 | Swap-free installer, true i586 support, terminal/input hardening, interrupt-storm fixes |
-| R1 | **LovePara** | *ラブパラ (Love Para)* — DECO*27 feat. Hatsune Miku | **Current** — app-server stack (PHP/Ruby/Perl, php-fpm, lighttpd `/proxy/` → port 1337), tcc on-target C dev with glibc headers, socat, gesftpserver, SiS 900 / VIA Rhine / Tigon3 NICs, fastfetch, nano, en_US.UTF-8 locale |
+| R1 | LovePara | *ラブパラ (Love Para)* — DECO*27 feat. Hatsune Miku | app-server stack (PHP/Ruby/Perl, php-fpm, lighttpd `/proxy/` → port 1337), tcc on-target C dev with glibc headers, socat, gesftpserver, SiS 900 / VIA Rhine / Tigon3 NICs, fastfetch, nano, en_US.UTF-8 locale |
+| R1 | **StreamingHeart** | *ストリーミングハート (Streaming Heart)* — DECO*27 feat. Hatsune Miku | **Current** — `runmain.o` for tcc (run C files like scripts without permanent compilation), tmux, custom bash prompt |
 
 ## Quick facts
 
