@@ -159,5 +159,3 @@ The OS image produced by the build is an aggregation of many
 components, each of which keeps its own license (the Linux kernel is
 GPL-2.0, BusyBox is GPL-2.0, and so on).
 
-The Mentalnet logo (`logos/mnlogo.jpg`) is part of this project and
-licensed under GPL-3.0-or-later with the rest of it.
